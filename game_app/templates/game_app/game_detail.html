@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ game.title }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .game-detail {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        .game-title {
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .game-description {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .game-date {
+            color: #999;
+            font-size: 0.9em;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #666;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-detail">
+        <h1 class="game-title">{{ game.title }}</h1>
+        <div class="game-description">{{ game.description }}</div>
+        <div class="game-date">
+            作成日: {{ game.created_at|date:"Y/m/d H:i" }}<br>
+            更新日: {{ game.updated_at|date:"Y/m/d H:i" }}
+        </div>
+    </div>
+    <a href="{% url 'game_app:game_list' %}" class="back-link">← ゲーム一覧に戻る</a>
+</body>
+</html> 
