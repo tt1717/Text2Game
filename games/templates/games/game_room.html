@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text2Game - {{ game_title }}</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .back-link {
+            text-decoration: none;
+            color: #666;
+            font-size: 1.1em;
+        }
+        h1 {
+            color: #333;
+            margin: 0;
+        }
+        .game-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2px;
+            background-color: #8B4513;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 20px auto;
+            max-width: 600px;
+        }
+        .cell {
+            aspect-ratio: 1;
+            background-color: #DEB887;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .cell:hover {
+            background-color: #D2B48C;
+        }
+        .cell.selected {
+            background-color: #FFD700;
+        }
+        .cell.valid-move {
+            background-color: #90EE90;
+        }
+        .pieces-in-hand {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .piece {
+            width: 40px;
+            height: 40px;
+            background-color: #DEB887;
+            border: 2px solid #8B4513;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .piece:hover {
+            transform: scale(1.1);
+        }
+        .piece.selected {
+            background-color: #FFD700;
+        }
+        .status {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 1.2em;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="{% url 'games:game_list' %}" class="back-link">← ゲーム一覧に戻る</a>
+        <h1>{{ game_title }}</h1>
+        <div></div>
+    </div>
+    <div class="game-container">
+        <div class="status" id="status">先手の番です</div>
+        <div class="board" id="board"></div>
+        <div class="pieces-in-hand" id="pieces-in-hand"></div>
+    </div>
+
+    <script>
+        const gameId = {{ game_id }};
+        const initialState = {{ initial_state|safe }};
+        let currentState = { ...initialState };
+        let selectedCell = null;
+        let selectedPiece = null;
+
+        // 盤面の初期化
+        function initializeBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            
+            for (let y = 0; y < currentState.board.length; y++) {
+                for (let x = 0; x < currentState.board[y].length; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.y = y;
+                    cell.dataset.x = x;
+                    cell.textContent = getPieceSymbol(currentState.board[y][x]);
+                    cell.addEventListener('click', () => handleCellClick(y, x));
+                    board.appendChild(cell);
+                }
+            }
+        }
+
+        // 持ち駒の表示
+        function updatePiecesInHand() {
+            const container = document.getElementById('pieces-in-hand');
+            container.innerHTML = '';
+            
+            const pieces = currentState.pieces_in_hand[currentState.is_first_player];
+            pieces.forEach((piece, index) => {
+                const pieceElement = document.createElement('div');
+                pieceElement.className = 'piece';
+                pieceElement.textContent = getPieceSymbol(piece);
+                pieceElement.dataset.index = index;
+                pieceElement.addEventListener('click', () => handlePieceClick(index));
+                container.appendChild(pieceElement);
+            });
+        }
+
+        // 駒の記号を取得
+        function getPieceSymbol(piece) {
+            const symbols = {
+                1: 'ひ',  // ひよこ
+                2: 'き',  // きりん
+                3: 'ぞ',  // ぞう
+                4: 'ら',  // らいおん
+                5: 'に',  // にわとり
+                '-1': 'ヒ',
+                '-2': 'キ',
+                '-3': 'ゾ',
+                '-4': 'ラ',
+                '-5': 'ニ'
+            };
+            return symbols[piece] || '';
+        }
+
+        // セルのクリック処理
+        function handleCellClick(y, x) {
+            if (selectedCell) {
+                // 移動処理
+                const action = ['move', selectedCell.y, selectedCell.x, y, x];
+                makeMove(action);
+                selectedCell = null;
+            } else if (selectedPiece !== null) {
+                // 駒を打つ処理
+                const action = ['drop', currentState.pieces_in_hand[currentState.is_first_player][selectedPiece], y, x];
+                makeMove(action);
+                selectedPiece = null;
+            } else {
+                // セルを選択
+                const piece = currentState.board[y][x];
+                if ((currentState.is_first_player && piece > 0) || (!currentState.is_first_player && piece < 0)) {
+                    selectedCell = { y, x };
+                    highlightCell(y, x);
+                }
+            }
+        }
+
+        // 持ち駒のクリック処理
+        function handlePieceClick(index) {
+            if (selectedPiece === index) {
+                selectedPiece = null;
+                clearHighlights();
+            } else {
+                selectedPiece = index;
+                clearHighlights();
+                highlightPiece(index);
+            }
+        }
+
+        // セルのハイライト
+        function highlightCell(y, x) {
+            clearHighlights();
+            const cell = document.querySelector(`.cell[data-y="${y}"][data-x="${x}"]`);
+            if (cell) cell.classList.add('selected');
+        }
+
+        // 持ち駒のハイライト
+        function highlightPiece(index) {
+            const piece = document.querySelector(`.piece[data-index="${index}"]`);
+            if (piece) piece.classList.add('selected');
+        }
+
+        // ハイライトのクリア
+        function clearHighlights() {
+            document.querySelectorAll('.cell.selected, .piece.selected').forEach(el => {
+                el.classList.remove('selected');
+            });
+        }
+
+        // 手を打つ
+        async function makeMove(action) {
+            try {
+                const response = await fetch(`/games/${gameId}/move/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ action })
+                });
+                
+                if (!response.ok) throw new Error('Invalid move');
+                
+                const data = await response.json();
+                currentState = data.new_state;
+                updateUI();
+            } catch (error) {
+                console.error('Error making move:', error);
+                alert('無効な手です');
+            }
+        }
+
+        // UIの更新
+        function updateUI() {
+            initializeBoard();
+            updatePiecesInHand();
+            document.getElementById('status').textContent = 
+                currentState.current_player ? '先手の番です' : '後手の番です';
+        }
+
+        // CSRFトークンの取得
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // 初期化
+        initializeBoard();
+        updatePiecesInHand();
+    </script>
+</body>
+</html> 

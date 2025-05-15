@@ -14,6 +14,7 @@
 ## 必要条件
 - Python 3.9以上
 - tkinter (GUIインターフェース用)
+- Django 4.2以上 (Webアプリケーション用)
 
 ## セットアップ
 1. リポジトリをクローン
@@ -26,12 +27,22 @@ git clone https://github.com/tt1717/Text2Game.git
 cd Text2Game
 ```
 
-3. 必要なパッケージをインストール
+3. 仮想環境を作成して有効化
+```bash
+python -m venv venv
+source venv/bin/activate  # Linuxの場合
+# または
+.\venv\Scripts\activate  # Windowsの場合
+```
+
+4. 必要なパッケージをインストール
 ```bash
 pip install -r requirements.txt
 ```
 
 ## 使用方法
+
+### デスクトップアプリケーションとして実行
 以下のコマンドでゲームを実行できます：
 
 ```bash
@@ -50,11 +61,27 @@ python main.py <game_name>
 python main.py doubutsu
 ```
 
+### Webアプリケーションとして実行
+1. データベースのマイグレーションを実行
+```bash
+python manage.py migrate
+```
+
+2. 開発サーバーを起動
+```bash
+python manage.py runserver
+```
+
+3. ブラウザで http://localhost:8000 にアクセス
+
 ## プロジェクト構造
 ```
 Text2Game/
 ├── main.py          # メイン実行ファイル
+├── manage.py        # Django管理スクリプト
 ├── requirements.txt # 依存パッケージ一覧
+├── text2game/       # Djangoプロジェクト設定
+├── games/           # Djangoゲームアプリケーション
 ├── game/            # ゲームモジュールディレクトリ
 │   ├── doubutsu.py  # どうぶつしょうぎ
 │   ├── gobblet.py   # ゴブレット
