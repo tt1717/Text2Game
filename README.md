@@ -7,23 +7,28 @@
 
 - どうぶつしょうぎ (doubutsu)
 - ゴブレット (gobblet)
-- クォリドール (quoridor)
+- コリドール (quoridor)
 - 将棋 (shogi)
 - オセロ (othello)
 
 ## 必要条件
-- Python 3.x
+- Python 3.9以上
 - tkinter (GUIインターフェース用)
 
 ## セットアップ
 1. リポジトリをクローン
 ```bash
-git clone https://github.com/あなたのユーザー名/Text2Game.git
+git clone https://github.com/tt1717/Text2Game.git
 ```
 
 2. プロジェクトディレクトリに移動
 ```bash
 cd Text2Game
+```
+
+3. 必要なパッケージをインストール
+```bash
+pip install -r requirements.txt
 ```
 
 ## 使用方法
@@ -49,10 +54,11 @@ python main.py doubutsu
 ```
 Text2Game/
 ├── main.py          # メイン実行ファイル
+├── requirements.txt # 依存パッケージ一覧
 ├── game/            # ゲームモジュールディレクトリ
 │   ├── doubutsu.py  # どうぶつしょうぎ
 │   ├── gobblet.py   # ゴブレット
-│   ├── quoridor.py  # クォリドール
+│   ├── quoridor.py  # コリドール
 │   ├── shogi.py     # 将棋
 │   └── othello.py   # オセロ
 └── README.md        # このファイル
