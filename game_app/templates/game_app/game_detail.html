@@ -1,53 +1,50 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>{{ game.title }}</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .game-detail {
-            border: 1px solid #ddd;
-            padding: 20px;
-            border-radius: 5px;
-        }
-        .game-title {
-            font-size: 1.5em;
-            color: #333;
-            margin-bottom: 10px;
-        }
-        .game-description {
-            color: #666;
-            line-height: 1.6;
-            margin-bottom: 20px;
-        }
-        .game-date {
-            color: #999;
-            font-size: 0.9em;
-        }
-        .back-link {
-            display: inline-block;
-            margin-top: 20px;
-            color: #666;
-            text-decoration: none;
-        }
-        .back-link:hover {
-            color: #333;
-        }
-    </style>
-</head>
-<body>
-    <div class="game-detail">
-        <h1 class="game-title">{{ game.title }}</h1>
-        <div class="game-description">{{ game.description }}</div>
-        <div class="game-date">
-            作成日: {{ game.created_at|date:"Y/m/d H:i" }}<br>
-            更新日: {{ game.updated_at|date:"Y/m/d H:i" }}
-        </div>
-    </div>
-    <a href="{% url 'game_app:game_list' %}" class="back-link">← ゲーム一覧に戻る</a>
-</body>
-</html> 
+{% extends 'base.html' %}
+{% load piece_filters %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1>{{ game.title }}</h1>
+    <p class="lead">{{ game.description }}</p>
+
+    <h2>盤面</h2>
+    <p style="color: red;">{{ message|safe }}</p>
+    <form method="post" id="moveForm">
+        {% csrf_token %}
+        <input type="hidden" name="from_y" id="from_y">
+        <input type="hidden" name="from_x" id="from_x">
+        <input type="hidden" name="to_y" id="to_y">
+        <input type="hidden" name="to_x" id="to_x">
+        <table border="1" style="border-collapse: collapse; text-align: center;">
+            {% for row in game.board %}
+            <tr>
+                {% for piece in row %}
+                <td style="width: 40px; height: 40px; font-size: 2em; cursor: pointer;" onclick="selectCell({{ forloop.parentloop.counter0 }}, {{ forloop.counter0 }})" id="cell-{{ forloop.parentloop.counter0 }}-{{ forloop.counter0 }}">
+                    {{ piece|piece_to_char|default:"&nbsp;"|safe }}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </table>
+    </form>
+    <div id="debug"></div>
+    <a href="{% url 'game_app:reset_game' game.pk %}" class="btn btn-primary mt-3">新しいゲームを始める</a>
+    <a href="{% url 'game_app:game_list' %}" class="btn btn-secondary mt-3">ゲーム一覧に戻る</a>
+</div>
+<script>
+let selected = null;
+function selectCell(y, x) {
+    if (selected === null) {
+        selected = {y, x};
+        document.getElementById(`cell-${y}-${x}`).style.backgroundColor = '#ff0';
+        document.getElementById('debug').innerText = `from: (${y}, ${x})`;
+    } else {
+        document.getElementById('from_y').value = selected.y;
+        document.getElementById('from_x').value = selected.x;
+        document.getElementById('to_y').value = y;
+        document.getElementById('to_x').value = x;
+        document.getElementById('debug').innerText = `from: (${selected.y}, ${selected.x}), to: (${y}, ${x})`;
+        document.getElementById('moveForm').submit();
+    }
+}
+</script>
+{% endblock %} 
