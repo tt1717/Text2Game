@@ -52,30 +52,42 @@ def game_detail(request, pk):
         },
         depth=game.depth
     )
-    debug_info = ""
+    # --- デバッグ情報ここから ---
     if request.method == 'POST':
-        from_y = int(request.POST.get('from_y'))
-        from_x = int(request.POST.get('from_x'))
-        to_y = int(request.POST.get('to_y'))
-        to_x = int(request.POST.get('to_x'))
-        action = ('move', from_y, from_x, to_y, to_x)
+        is_drop = request.POST.get('is_drop') == 'true'
+        if is_drop:
+            drop_piece = int(request.POST.get('drop_piece'))
+            to_y = int(request.POST.get('to_y'))
+            to_x = int(request.POST.get('to_x'))
+            action = ('drop', drop_piece, to_y, to_x)
+        else:
+            from_y = int(request.POST.get('from_y'))
+            from_x = int(request.POST.get('from_x'))
+            to_y = int(request.POST.get('to_y'))
+            to_x = int(request.POST.get('to_x'))
+            action = ('move', from_y, from_x, to_y, to_x)
         legal = state.legal_actions()
-        debug_info += f"from: ({from_y},{from_x}), to: ({to_y},{to_x})<br>"
-        debug_info += f"action: {action}<br>"
-        debug_info += f"legal_actions: {legal}<br>"
-        debug_info += f"board: {game.board} (type: {type(game.board[0][0])})<br>"
-        debug_info += f"pieces_in_hand: {game.pieces_in_hand} (type: {type(int_hand_true)}, elem: {type(int_hand_true[0]) if int_hand_true else 'empty'})<br>"
-        debug_info += f"depth: {game.depth}<br>"
         if action in legal:
             state = state.next(action)
             game.board = state.board
             game.pieces_in_hand = {"True": state.pieces_in_hand[True], "False": state.pieces_in_hand[False]}
             game.depth += 1
             game.save()
-            message = "コマを動かしました" + "<br>" + debug_info
+            message = "コマを動かしました"
         else:
-            message = "不正な手です" + "<br>" + debug_info
-    return render(request, 'game_app/game_detail.html', {'game': game, 'message': message})
+            message = "不正な手です"
+    # --- デバッグ情報ここまで ---
+    # 勝敗判定
+    winner = state.get_winner()
+    if winner:
+        if winner == 'first':
+            message = "先手の勝ちです！"
+        elif winner == 'second':
+            message = "後手の勝ちです！"
+        elif winner == 'draw':
+            message = "千日手（引き分け）です！"
+        return render(request, 'game_app/game_detail.html', {'game': game, 'message': message, 'game_ended': True})
+    return render(request, 'game_app/game_detail.html', {'game': game, 'message': message, 'game_ended': False})
 
 def reset_game(request, pk):
     game = get_object_or_404(Game, pk=pk)
