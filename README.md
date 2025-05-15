@@ -11,9 +11,55 @@
 - 将棋 (shogi)
 - オセロ (othello)
 
+---
+
+## どうぶつしょうぎWebアプリ（Django版）について
+
+- どうぶつしょうぎの正式ルール（キャッチ・トライ・千日手・成り）に完全対応
+- 盤面・持ち駒の表示や操作性をWebで快適に再現
+- 勝敗判定や千日手判定も自動で行われます
+- 盤面下側が自分（先手）、上側が相手（後手）。持ち駒は横並びで表示され、相手側は180度回転表示
+- 勝敗が決まると明示表示、操作不可となります
+- 「新しいゲームを始める」ボタンでリセット可能
+
+### Webアプリとしての使い方（Django利用時）
+
+1. 依存パッケージのインストール
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. データベースのマイグレーション
+   ```bash
+   python manage.py migrate
+   ```
+3. 開発サーバーの起動
+   ```bash
+   python manage.py runserver
+   ```
+4. ブラウザでアクセス
+   - http://localhost:8000 にアクセス
+   - 「どうぶつしょうぎ」を選択してゲーム開始
+
+### ローカル（Tkinter）での実行方法
+
+1. 依存パッケージのインストール
+   - TkinterはPython標準ライブラリですが、環境によっては別途インストールが必要な場合があります
+2. コマンド実行例
+   ```bash
+   python main.py doubutsu
+   ```
+   - GUIウィンドウが開き、ローカルでどうぶつしょうぎを遊べます
+
+### 注意事項
+- Webアプリとローカル（Tkinter）版は盤面・ルールロジックを共通化しています
+- デバッグ情報は通常非表示ですが、必要に応じてコメント解除で有効化できます
+
+---
+
 ## 必要条件
 - Python 3.9以上
 - tkinter (GUIインターフェース用)
+- Django 4.2以上 (Webアプリケーション用)
 
 ## セットアップ
 1. リポジトリをクローン
@@ -26,12 +72,22 @@ git clone https://github.com/tt1717/Text2Game.git
 cd Text2Game
 ```
 
-3. 必要なパッケージをインストール
+3. 仮想環境を作成して有効化
+```bash
+python -m venv venv
+source venv/bin/activate  # Linuxの場合
+# または
+.\venv\Scripts\activate  # Windowsの場合
+```
+
+4. 必要なパッケージをインストール
 ```bash
 pip install -r requirements.txt
 ```
 
 ## 使用方法
+
+### デスクトップアプリケーションとして実行
 以下のコマンドでゲームを実行できます：
 
 ```bash
@@ -50,11 +106,27 @@ python main.py <game_name>
 python main.py doubutsu
 ```
 
+### Webアプリケーションとして実行
+1. データベースのマイグレーションを実行
+```bash
+python manage.py migrate
+```
+
+2. 開発サーバーを起動
+```bash
+python manage.py runserver
+```
+
+3. ブラウザで http://localhost:8000 にアクセス
+
 ## プロジェクト構造
 ```
 Text2Game/
 ├── main.py          # メイン実行ファイル
+├── manage.py        # Django管理スクリプト
 ├── requirements.txt # 依存パッケージ一覧
+├── text2game/       # Djangoプロジェクト設定
+├── games/           # Djangoゲームアプリケーション
 ├── game/            # ゲームモジュールディレクトリ
 │   ├── doubutsu.py  # どうぶつしょうぎ
 │   ├── gobblet.py   # ゴブレット

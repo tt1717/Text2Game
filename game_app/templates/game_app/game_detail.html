@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% load piece_filters %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1>{{ game.title }}</h1>
+    <p class="lead">{{ game.description }}</p>
+
+    <h2>盤面</h2>
+    <p style="color: red;">{{ message|safe }}</p>
+    <form method="post" id="moveForm">
+        {% csrf_token %}
+        <input type="hidden" name="from_y" id="from_y">
+        <input type="hidden" name="from_x" id="from_x">
+        <input type="hidden" name="to_y" id="to_y">
+        <input type="hidden" name="to_x" id="to_x">
+        <input type="hidden" name="is_drop" id="is_drop" value="false">
+        <input type="hidden" name="drop_piece" id="drop_piece" value="">
+
+        <!-- 相手の持ち駒表示エリア -->
+        <div class="pieces-in-hand mb-3">
+            <div class="d-flex flex-nowrap justify-content-start">
+                {% for piece in game.pieces_in_hand.False %}
+                <div class="piece opponent-piece me-2 mb-2 rotated" id="piece-{{ piece }}">
+                    {% if piece == 5 %}
+                        {{ 1|piece_to_char|safe }}
+                    {% else %}
+                        {{ piece|piece_to_char|safe }}
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            <h3>相手の持ち駒</h3>
+        </div>
+
+        <table border="1" style="border-collapse: collapse; text-align: center;">
+            {% for row in game.board %}
+            <tr>
+                {% for piece in row %}
+                <td style="width: 40px; height: 40px; font-size: 2em; cursor: pointer;" onclick="selectCell({{ forloop.parentloop.counter0 }}, {{ forloop.counter0 }})" id="cell-{{ forloop.parentloop.counter0 }}-{{ forloop.counter0 }}">
+                    <span{% if piece < 0 %} class="rotated"{% endif %}>{{ piece|piece_to_char|default:"&nbsp;"|safe }}</span>
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </table>
+
+        <!-- 自分の持ち駒表示エリア -->
+        <div class="pieces-in-hand mt-3">
+            <h3>自分の持ち駒</h3>
+            <div class="d-flex flex-nowrap">
+                {% for piece in game.pieces_in_hand.True %}
+                <div class="piece my-piece me-2 mb-2" onclick="selectPiece({{ piece }})" id="piece-{{ piece }}">
+                    {{ piece|piece_to_char|safe }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </form>
+
+    <!-- 勝敗条件の説明 -->
+    <div class="mt-4">
+        <h4>勝敗条件</h4>
+        <ul>
+            <li>キャッチ：相手のライオンを取ると勝ち</li>
+            <li>トライ：自分のライオンが相手陣地に入り、次の手で取られなければ勝ち</li>
+        </ul>
+    </div>
+
+    <!-- 勝敗表示 -->
+    <div id="gameResult" class="alert alert-info mt-3" style="display: none;"></div>
+
+    <a href="{% url 'game_app:reset_game' game.pk %}" class="btn btn-primary mt-3">新しいゲームを始める</a>
+    <a href="{% url 'game_app:game_list' %}" class="btn btn-secondary mt-3">ゲーム一覧に戻る</a>
+</div>
+
+<style>
+.piece {
+    width: 40px;
+    height: 40px;
+    border: 1px solid #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2em;
+}
+.my-piece {
+    background-color: #fff;
+    cursor: pointer;
+}
+.opponent-piece {
+    background-color: #f0f0f0;
+}
+.piece.selected {
+    background-color: #FFD700;
+}
+td.selected {
+    background-color: #FFD700;
+}
+.pieces-in-hand .d-flex {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 8px;
+}
+.rotated {
+    display: inline-block;
+    transform: rotate(180deg);
+}
+</style>
+
+<script>
+let selected = null;
+let selectedPiece = null;
+let gameEnded = {{ game_ended|yesno:"true,false" }};
+
+function selectCell(y, x) {
+    console.log('selectCell called', y, x, gameEnded);
+    if (gameEnded) return;
+    
+    if (selectedPiece !== null) {
+        document.getElementById('is_drop').value = 'true';
+        document.getElementById('drop_piece').value = selectedPiece;
+        document.getElementById('to_y').value = y;
+        document.getElementById('to_x').value = x;
+        document.getElementById('moveForm').submit();
+    } else if (selected) {
+        document.getElementById('from_y').value = selected.y;
+        document.getElementById('from_x').value = selected.x;
+        document.getElementById('to_y').value = y;
+        document.getElementById('to_x').value = x;
+        document.getElementById('moveForm').submit();
+    } else {
+        selected = {y: y, x: x};
+        document.querySelectorAll('td').forEach(td => td.classList.remove('selected'));
+        document.getElementById(`cell-${y}-${x}`).classList.add('selected');
+    }
+}
+
+function selectPiece(piece) {
+    console.log('selectPiece called', piece, gameEnded);
+    if (gameEnded) return;
+    
+    if (selectedPiece === piece) {
+        selectedPiece = null;
+        document.querySelectorAll('.piece').forEach(p => p.classList.remove('selected'));
+        document.querySelectorAll('td').forEach(td => td.classList.remove('selected'));
+    } else {
+        selectedPiece = piece;
+        document.querySelectorAll('.piece').forEach(p => p.classList.remove('selected'));
+        document.getElementById(`piece-${piece}`).classList.add('selected');
+        document.querySelectorAll('td').forEach(td => td.classList.remove('selected'));
+    }
+}
+
+// 勝敗表示の更新
+function updateGameResult(result) {
+    const resultDiv = document.getElementById('gameResult');
+    if (result) {
+        resultDiv.style.display = 'block';
+        resultDiv.textContent = result;
+        gameEnded = true;
+    } else {
+        resultDiv.style.display = 'none';
+        gameEnded = false;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const resultText = document.querySelector('p[style="color: red;"]').textContent;
+    if (resultText.includes('勝ち') || resultText.includes('負け')) {
+        updateGameResult(resultText);
+    }
+});
+</script>
+{% endblock %} 

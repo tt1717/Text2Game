@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ゲーム一覧</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .game-list {
+            list-style: none;
+            padding: 0;
+        }
+        .game-item {
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .game-item:hover {
+            background-color: #f5f5f5;
+        }
+        .game-title {
+            font-size: 1.2em;
+            color: #333;
+            text-decoration: none;
+        }
+        .game-title:hover {
+            color: #666;
+        }
+        .game-date {
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <h1>ゲーム一覧</h1>
+    <ul class="game-list">
+        {% for game in games %}
+        <li class="game-item">
+            <a href="{% url 'game_app:game_detail' game.pk %}" class="game-title">{{ game.title }}</a>
+            <div class="game-date">作成日: {{ game.created_at|date:"Y/m/d H:i" }}</div>
+        </li>
+        {% empty %}
+        <li>ゲームがまだありません。</li>
+        {% endfor %}
+    </ul>
+</body>
+</html> 

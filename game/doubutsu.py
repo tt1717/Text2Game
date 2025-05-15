@@ -2,7 +2,7 @@ import tkinter as tk
 import random
 
 class GameState:
-    def __init__(self, board_size=(4, 3), board=None, pieces_in_hand=None, depth=0):
+    def __init__(self, board_size=(4, 3), board=None, pieces_in_hand=None, depth=0, history=None):
         self.rows, self.cols = board_size
         self.depth = depth
 
@@ -29,6 +29,23 @@ class GameState:
         else:
             self.pieces_in_hand = {True: [], False: []}  # {is_first_player: [pieces]}
 
+        # 千日手用の局面履歴
+        if history is not None:
+            self.history = history[:]
+        else:
+            self.history = []
+        # 現局面を履歴に追加
+        self.history.append(self._get_position_hash())
+
+    def _get_position_hash(self):
+        # 盤面・持ち駒・手番をタプル化してハッシュ化
+        return (
+            tuple(tuple(row) for row in self.board),
+            tuple(self.pieces_in_hand[True]),
+            tuple(self.pieces_in_hand[False]),
+            self.depth % 2
+        )
+
     def is_lose(self):
         winner = self.get_winner()
         if winner is None:
@@ -36,45 +53,65 @@ class GameState:
         return (winner == 'second') if self.is_first_player() else (winner == 'first')
 
     def is_draw(self):
-        # Implement draw condition if any
-        return False  # No draw condition implemented
+        # 千日手判定（同一局面が3回出現）
+        return self.history.count(self._get_position_hash()) >= 3
 
     def is_done(self):
         return self.get_winner() is not None
 
     def get_winner(self):
-        # Check for win conditions
-        first_player_lion_exists = False
-        second_player_lion_exists = False
-        first_player_lion_in_opponent_back_rank = False
-        second_player_lion_in_opponent_back_rank = False
+        lion_found = False
+        enemy_lion_found = False
         for y in range(self.rows):
             for x in range(self.cols):
                 piece = self.board[y][x]
                 if piece == 4:
-                    first_player_lion_exists = True
-                    if y == 0:
-                        first_player_lion_in_opponent_back_rank = True
+                    lion_found = True
                 elif piece == -4:
-                    second_player_lion_exists = True
-                    if y == self.rows - 1:
-                        second_player_lion_in_opponent_back_rank = True
-
-        if not first_player_lion_exists:
+                    enemy_lion_found = True
+        if not lion_found:
             return 'second'
-        if not second_player_lion_exists:
+        if not enemy_lion_found:
             return 'first'
-        if first_player_lion_in_opponent_back_rank:
-            return 'first'
-        if second_player_lion_in_opponent_back_rank:
-            return 'second'
+        # 千日手
+        if self.is_draw():
+            return 'draw'
+        # トライ判定
+        is_first_now = self.is_first_player()
+        if is_first_now:
+            for x in range(self.cols):
+                if self.board[0][x] == 4:
+                    if self._is_lion_safe_after_next_move(0, x, 4):
+                        return 'first'
+        else:
+            for x in range(self.cols):
+                if self.board[self.rows-1][x] == -4:
+                    if self._is_lion_safe_after_next_move(self.rows-1, x, -4):
+                        return 'second'
         return None
+
+    def _is_lion_safe_after_next_move(self, y, x, lion_piece):
+        # 次の相手手番で全ての合法手を試し、ライオンが取られないか
+        # 1. 仮にパスして相手手番にする
+        next_state = GameState(board_size=(self.rows, self.cols), board=self.board, pieces_in_hand=self.pieces_in_hand, depth=self.depth + 1, history=self.history)
+        # 2. 相手の全合法手を試し、どの手でもライオンが取られないならTrue
+        for action in next_state.legal_actions():
+            test_state = next_state.next(action)
+            # 盤上にライオンがいなければ取られている
+            found = False
+            for yy in range(self.rows):
+                for xx in range(self.cols):
+                    if test_state.board[yy][xx] == lion_piece:
+                        found = True
+            if not found:
+                return False  # 取られる手があるので安全でない
+        return True  # どの手でも取られないので安全
 
     def legal_actions(self):
         actions = []
         is_first = self.is_first_player()
 
-        # Generate move actions for pieces on the board
+        # 手番に応じて自分のコマだけ動かせるようにする
         for y in range(self.rows):
             for x in range(self.cols):
                 piece = self.board[y][x]
@@ -85,15 +122,16 @@ class GameState:
                         if 0 <= ny < self.rows and 0 <= nx < self.cols:
                             target_piece = self.board[ny][nx]
                             if (is_first and target_piece <= 0) or (not is_first and target_piece >= 0):
-                                # Empty square or opponent's piece
                                 actions.append(('move', y, x, ny, nx))
 
-        # Generate drop actions for pieces in hand
+        # 持ち駒の打ちも手番に応じて
         pieces_in_hand = self.pieces_in_hand[is_first]
         for piece in pieces_in_hand:
             for y in range(self.rows):
                 for x in range(self.cols):
                     if self.board[y][x] == 0:
+                        if piece == 1 and ((is_first and y == 0) or (not is_first and y == self.rows-1)):
+                            continue
                         actions.append(('drop', piece, y, x))
         return actions
 
@@ -101,35 +139,33 @@ class GameState:
         moves = []
         piece_type = abs(piece)
 
-        if piece_type == 1:  # Chick
+        if piece_type == 1:  # ひよこ
             dy = -1 if is_first_player else 1
             moves.append((dy, 0))
-        elif piece_type == 2:  # Giraffe
+        elif piece_type == 2:  # きりん
             directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
             moves.extend(directions)
-        elif piece_type == 3:  # Elephant
+        elif piece_type == 3:  # ぞう
             directions = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
             moves.extend(directions)
-        elif piece_type == 4:  # Lion
+        elif piece_type == 4:  # ライオン
             directions = [(-1, -1), (-1, 0), (-1, 1),
                           (0, -1),          (0, 1),
                           (1, -1),  (1, 0), (1, 1)]
             moves.extend(directions)
-        elif piece_type == 5:  # Hen (promoted chick)
-            # Hen can move to all adjacent squares except backward diagonals
+        elif piece_type == 5:  # にわとり
+            # にわとりは斜め後ろ以外の6方向
             if is_first_player:
-                directions = [(-1, -1), (-1, 0), (-1, 1),
-                              (0, -1),          (0, 1),
-                                         (1, 0)]
+                directions = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, 0)]
+                # 斜め後ろ（(1, -1), (1, 1)）を除外
             else:
-                directions = [(1, -1),  (1, 0),  (1, 1),
-                              (0, -1),          (0, 1),
-                                         (-1, 0)]
+                directions = [(1, -1), (1, 0), (1, 1), (0, -1), (0, 1), (-1, 0)]
+                # 斜め後ろ（(-1, -1), (-1, 1)）を除外
             moves.extend(directions)
         return moves
 
     def next(self, action):
-        state = GameState(board_size=(self.rows, self.cols), board=self.board, pieces_in_hand=self.pieces_in_hand, depth=self.depth + 1)
+        state = GameState(board_size=(self.rows, self.cols), board=self.board, pieces_in_hand=self.pieces_in_hand, depth=self.depth + 1, history=self.history)
 
         is_first = self.is_first_player()
         if action[0] == 'move':
@@ -142,22 +178,20 @@ class GameState:
             if target_piece != 0:
                 captured_piece_type = abs(target_piece)
                 if captured_piece_type == 5:
-                    # Captured piece was a Hen, demote it to Chick
                     captured_piece_type = 1
-                # Add captured piece to player's hand (unpromoted and with correct sign)
-                captured_piece = captured_piece_type
-                state.pieces_in_hand[is_first].append(captured_piece)
-            # Handle promotion
-            # If the piece is a Chick moving into back rank, promote to Hen
-            if abs(piece) == 1 and ((is_first and y2 == 0) or (not is_first and y2 == self.rows - 1)):
-                piece = 5 if piece > 0 else -5  # Promote to Hen
+                state.pieces_in_hand[is_first].append(captured_piece_type)
+            # Handle promotion（ひよこが相手陣地の一番奥に進んだら強制的ににわとりに）
+            if abs(piece) == 1:
+                if (is_first and y2 == 0) or (not is_first and y2 == self.rows - 1):
+                    piece = 5 if piece > 0 else -5  # にわとりに成る
             state.board[y2][x2] = piece
         elif action[0] == 'drop':
             _, piece, y, x = action
             piece_to_place = piece if is_first else -piece
             state.board[y][x] = piece_to_place
-            # Remove the piece from the player's hand
             state.pieces_in_hand[is_first].remove(piece)
+        # 局面履歴を更新
+        state.history.append(state._get_position_hash())
         return state
 
     def is_first_player(self):
